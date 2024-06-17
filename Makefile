@@ -32,8 +32,19 @@ SRCS = 	./src/system_stm32f10x.c \
 	./src/fw_lib/core_cm3.c \
 	./src/fw_lib/stm32f10x_rcc.c \
 	./src/fw_lib/stm32f10x_gpio.c \
+	./src/fw_lib/stm32f10x_usart.c \
+	./src/fw_lib/stm32f10x_spi.c \
 	./src/fw_lib/misc.c \
-	./src/main.c 
+	./src/main.c  \
+	./src/led.c \
+	./src/key.c \
+	./src/delay.c \
+	./src/usart.c \
+	./src/lcd.c \
+	./src/lcd_init.c \
+	./src/w25qxx.c \
+
+
 
 
 OBJS=$(SRCS:.c=.o)
