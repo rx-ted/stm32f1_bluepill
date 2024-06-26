@@ -1,3 +1,9 @@
+# project name
+TARGET_NAME=bluepill
+OUTPUT_DIR = output
+BUILD_DIR = build
+TARGET=$(OUTPUT_DIR)/$(TARGET_NAME)
+
 CROSS_COMPILE=arm-none-eabi-
 #CROSS_COMPILE =/opt/arm-2011.03/bin/arm-none-eabi-
 CC=$(CROSS_COMPILE)gcc
@@ -8,73 +14,99 @@ OC=$(CROSS_COMPILE)objcopy
 OD=$(CROSS_COMPILE)objdump
 SZ=$(CROSS_COMPILE)size
 
-CFLAGS= -c -fno-common \
+DEFFLAGS=-DDEBUG -DUSE_HAL_DRIVER -DSTM32F103xB -DDEBUGxxx
+
+
+FLAGS= $(DEFFLAGS) -c \
+	-mcpu=cortex-m3 \
+	-g3 --specs=nano.specs -mfloat-abi=soft \
+	-mthumb  \
+	-MMD -MP -MF"$(@:%.o=%.d)" \
+	-MT"$@" 
+
+
+CFLAGS= $(FLAGS) \
+	-std=c11 -O0 \
 	-ffunction-sections \
-	-fdata-sections \
-	-Os \
-	-g3 \
-	-mcpu=cortex-m3 -Wall \
-	-mthumb -mfloat-abi=soft
+	-fdata-sections -Wall\
+	-fstack-usage 
 
-LDSCRIPT=ld/stm32_rom.ld
-LDFLAGS	= --gc-sections,-T$(LDSCRIPT),-nostdlib,-lnosys
-OCFLAGS	= -Obinary
-ODFLAGS	= -S
-OUTPUT_DIR = output
-TARGET  = $(OUTPUT_DIR)/main
-
-INCLUDE = -I./src/fw_lib/include \
-	  -I./src/include \
-
-SRCS = 	./src/system_stm32f10x.c \
-	./src/stm32f10x_it.c \
-	./src/newlib_stubs.c \
-	./src/fw_lib/core_cm3.c \
-	./src/fw_lib/stm32f10x_rcc.c \
-	./src/fw_lib/stm32f10x_gpio.c \
-	./src/fw_lib/stm32f10x_usart.c \
-	./src/fw_lib/stm32f10x_spi.c \
-	./src/fw_lib/misc.c \
-	./src/main.c  \
-	./src/led.c \
-	./src/key.c \
-	./src/delay.c \
-	./src/usart.c \
-	./src/lcd.c \
-	./src/lcd_init.c \
-	./src/w25qxx.c \
+SFLAGS= $(FLAGS) -DDEBUG \
+	-x assembler-with-cpp
 
 
 
+LDSCRIPT=Startup/STM32F103C8TX_FLASH.ld
+LDFLAGS	= -mcpu=cortex-m3 -T"$(LDSCRIPT)" --specs=nosys.specs -Wl,-Map="$(TARGET).map" -Wl,--gc-sections -static --specs=nano.specs -mfloat-abi=soft -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
 
-OBJS=$(SRCS:.c=.o)
+
+include Core/subdir.mk
+include HW/subdir.mk
+include Drivers/subdir.mk
+include Startup/subdir.mk
+
+INCLUDE = \
+		$(HW_INCS) \
+	$(FW_INCS) \
+		$(CORE_INCS) \
+		$(CMSIS_INCS) \
+		$(HAL_INCS) \
+
+# arm-gcc static include
+INCLUDE += -I/usr/lib/gcc/arm-none-eabi/10.3.1/include 
+INCLUDE += -I/usr/lib/gcc/arm-none-eabi/10.3.1/include-fixed 
+INCLUDE += -I/usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/include
+
+SRCS = \
+	$(FW_SRCS) \
+	$(HW_SRCS) \
+	$(CORE_SRCS) \
+	$(HAL_SRCS) \
+
 
 .PHONY : clean all
 
-all: $(TARGET).bin  $(TARGET).list
-	$(SZ) $(TARGET).elf
+all: $(TARGET).bin $(TARGET).hex  $(TARGET).list
+
+OBJECTS = $(addprefix $(BUILD_DIR)/,$(notdir $(SRCS:.c=.o)))
+vpath %.c $(sort $(dir $(SRCS)))
+
+OBJECTS += $(addprefix $(BUILD_DIR)/,$(notdir $(ASM_SOURCES:.s=.o)))
+vpath %.s $(sort $(dir $(ASM_SOURCES)))
+
 
 clean:
-	-find . -name '*.o'   -exec rm {} \;
-	-find . -name '*.elf' -exec rm {} \;
-	-find . -name '*.lst' -exec rm {} \;
-	-find . -name '*.out' -exec rm {} \;
-	-find . -name '*.bin' -exec rm {} \;
-	-find . -name '*.map' -exec rm {} \;
+	rm -rf $(BUILD_DIR)/*
+	rm -rf $(OUTPUT_DIR)/*
 
-$(TARGET).list: $(TARGET).elf
-	$(OD) $(ODFLAGS) $< > $(TARGET).lst
+$(OUTPUT_DIR):
+	mkdir -p $@
 
-$(TARGET).bin: $(TARGET).elf
-	$(OC) $(OCFLAGS) $(TARGET).elf $(TARGET).bin
+$(BUILD_DIR):
+	mkdir -p $@
 
-$(TARGET).elf: $(OBJS) ./src/startup.o
-	@$(CC) -mcpu=cortex-m3 -mthumb -Wl,$(LDFLAGS),-o$(TARGET).elf,-Map,$(TARGET).map ./src/startup.o $(OBJS)
+$(TARGET).list: $(TARGET).elf 
+	@echo '[LIST] Finished building: $@'
+	@$(OD) -h -S "$<" > "$@" 
 
-%.o: %.c
-	@echo "  CC $<"
-	@$(CC) $(INCLUDE) $(CFLAGS)  $< -o $*.o
+$(TARGET).hex: $(TARGET).elf 
+	@echo '[HEX] Finished building: $@'
+	@$(OC) -Oihex "$<" "$@"
 
-%.o: %.S
-	@echo "  CC $<"
-	@$(CC) $(INCLUDE) $(CFLAGS)  $< -o $*.o
+$(TARGET).bin: $(TARGET).elf 
+	@echo '[BIN] Finished building: $@'
+	@$(OC) -Obinary "$<" "$@"
+
+$(TARGET).elf: $(OBJECTS) Makefile | $(OUTPUT_DIR)
+	@$(CC) $(LDFLAGS) $(OBJECTS) -o $@
+	@echo '[ELF] Finished building: $@'
+	@$(SZ) "$@"
+
+$(BUILD_DIR)/%.o: %.c Makefile | $(BUILD_DIR)
+	@echo "[CC] $<" 
+	@$(CC) $(INCLUDE) $(CFLAGS)  "$<" -o "$@" 
+
+$(BUILD_DIR)/%.o: %.s Makefile | $(BUILD_DIR)
+	@echo "[AS] $<" 
+	@$(CC) $(INCLUDE) $(SFLAGS)  "$<" -o "$@"
+

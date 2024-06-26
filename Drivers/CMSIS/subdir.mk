@@ -1,0 +1,8 @@
+
+CURRENCT_DIR=Drivers/CMSIS
+
+
+CMSIS_INCS := -I$(CURRENCT_DIR)/Include 
+CMSIS_INCS += -I$(CURRENCT_DIR)/Device/ST/STM32F1xx/Include
+
+

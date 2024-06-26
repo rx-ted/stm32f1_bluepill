@@ -5,4 +5,7 @@ main.bin
 *.list
 *.map
 main.elf
-output/*
+output
+build
+compile_commands.json
+.cache
