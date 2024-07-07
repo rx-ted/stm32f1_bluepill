@@ -15,12 +15,14 @@
  ******************************************************************************
  */
 
+/*<img src="https://img-blog.csdnimg.cn/c6011081ef284b70bb21ec6b07f4c877.png">
+ */
 #ifndef W25QXX_H_
 #define W25QXX_H_
 
 #include "stdint.h"
 #include "stm32f1xx.h"
-#ifdef DEBUGxxx
+#ifdef DEBUG
 #define W25_DBG(...)                                                           \
   printf(__VA_ARGS__);                                                         \
   printf("\n")
@@ -80,6 +82,8 @@ W25QXX_result_t w25qxx_erase(W25QXX_HandleTypeDef *w25qxx, uint32_t address,
                              uint32_t len);
 W25QXX_result_t w25qxx_chip_erase(W25QXX_HandleTypeDef *w25qxx);
 
+W25QXX_result_t w25qxx_read_char(W25QXX_HandleTypeDef *w25qxx, uint8_t *buffer,
+                                 uint32_t address, uint8_t size);
 #endif /* W25QXX_H_ */
 
 /*

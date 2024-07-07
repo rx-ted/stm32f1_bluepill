@@ -102,12 +102,12 @@ void lcd_show_char(uint16_t x, uint16_t y, uint8_t num, uint16_t fc,
   for (i = 0; i < TypefaceNum; i++) {
     if (sizey == 12)
       temp = ascii_1206[num][i]; // 调用6x12字体
-    else if (sizey == 16)
-      temp = ascii_1608[num][i]; // 调用8x16字体
-    else if (sizey == 24)
-      temp = ascii_2412[num][i]; // 调用12x24字体
-    else if (sizey == 32)
-      temp = ascii_3216[num][i]; // 调用16x32字体
+    /*else if (sizey == 16)*/
+    /*  temp = ascii_1608[num][i]; // 调用8x16字体*/
+    /*else if (sizey == 24)*/
+    /*  temp = ascii_2412[num][i]; // 调用12x24字体*/
+    /*else if (sizey == 32)*/
+    /*  temp = ascii_3216[num][i]; // 调用16x32字体*/
     else
       return;
     for (t = 0; t < 8; t++) {

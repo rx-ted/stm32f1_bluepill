@@ -20,6 +20,7 @@
 
 #include "w25qxx.h"
 #include "main.h"
+#include <stdint.h>
 #include <string.h>
 
 #ifdef DEBUG
@@ -84,14 +85,12 @@ uint32_t w25qxx_read_id(W25QXX_HandleTypeDef *w25qxx) {
   uint8_t buf[3];
   cs_on(w25qxx);
   buf[0] = W25QXX_GET_ID;
-  printf("buf[0]=%d\n", buf[0]);
   if (w25qxx_transmit(w25qxx, buf, 1) == W25QXX_Ok) {
     if (w25qxx_receive(w25qxx, buf, 3) == W25QXX_Ok) {
       ret = (uint32_t)((buf[0] << 16) | (buf[1] << 8) | (buf[2]));
     }
   }
   cs_off(w25qxx);
-  printf("id: %d\n", ret);
   return ret;
 }
 
@@ -159,41 +158,34 @@ W25QXX_result_t w25qxx_init(W25QXX_HandleTypeDef *w25qxx,
     w25qxx->device_id = (uint16_t)(id & 0xFFFF);
 
     switch (w25qxx->manufacturer_id) {
-    case W25QXX_MANUFACTURER_GIGADEVICE:
-
-      w25qxx->block_size = 0x10000;
-      w25qxx->sector_size = 0x1000;
-      w25qxx->sectors_in_block = 0x10;
-      w25qxx->page_size = 0x100;
-      w25qxx->pages_in_sector = 0x10;
-
-      switch (w25qxx->device_id) {
-      case 0x6017:
-        w25qxx->block_count = 0x80;
-        break;
-      default:
-        W25_DBG("Unknown Giga Device device");
-        result = W25QXX_Err;
-      }
-
-      break;
     case W25QXX_MANUFACTURER_WINBOND:
-
-      w25qxx->block_size = 0x10000;
-      w25qxx->sector_size = 0x1000;
-      w25qxx->sectors_in_block = 0x10;
-      w25qxx->page_size = 0x100;
-      w25qxx->pages_in_sector = 0x10;
+      w25qxx->block_size = 0X10000;    // 0x400*0X40=64KB
+      w25qxx->sector_size = 0x1000;    // 4KB
+      w25qxx->page_size = 0x100;       // 256B
+      w25qxx->sectors_in_block = 0x10; // 1 block = 16 sectors
+      w25qxx->pages_in_sector = 0x10;  // 1 sector = 16 pages
 
       switch (w25qxx->device_id) {
-      case 0x4018:
-        w25qxx->block_count = 0x100;
+      case 0x4017:
+        w25qxx->block_count = 0x80;
+        W25_DBG("Successful: check W25Q64ID");
+        break;
+      case 0x4016:
+        w25qxx->block_count = 0x40;
+        W25_DBG("Successful: check W25Q32ID");
+        break;
+      case 0x4015:
+        w25qxx->block_count = 0x20;
+        W25_DBG("Successful: check W25Q16ID");
+        break;
+      case 0x4014:
+        w25qxx->block_count = 0x10;
+        W25_DBG("Successful: check W25Q80ID");
         break;
       default:
         W25_DBG("Unknown Winbond device");
         result = W25QXX_Err;
       }
-
       break;
     default:
       W25_DBG("Unknown manufacturer");
@@ -242,9 +234,56 @@ W25QXX_result_t w25qxx_read(W25QXX_HandleTypeDef *w25qxx, uint32_t address,
 
   return W25QXX_Ok;
 }
-
 W25QXX_result_t w25qxx_write(W25QXX_HandleTypeDef *w25qxx, uint32_t address,
                              uint8_t *buf, uint32_t len) {
+  uint16_t past_num = 0;
+  uint32_t curr_address = address;
+  uint32_t end_address = address + len;
+  uint32_t buffer_offset = 0;
+  past_num = w25qxx->page_size - (curr_address % w25qxx->page_size);
+#ifdef DEBUG
+  W25_DBG("w25qxx_write: \n"
+          "start_address=0x%08x\n"
+          "end_address=0x%08x\n"
+          "the past num to write %d\n"
+          "len=0x%04x\n"
+          "buff size=%d",
+          curr_address, end_address, past_num, len, sizeof(buf));
+#endif
+
+  /*while (curr_address < end_address) {*/
+  while (0) {
+    if (w25qxx_wait_for_ready(w25qxx, HAL_MAX_DELAY) != W25QXX_Ok) {
+      return W25QXX_Timeout;
+    }
+    if (w25qxx_write_enable(w25qxx) != W25QXX_Ok) {
+      return W25QXX_Err;
+    }
+    uint8_t tx[4] = {
+        W25QXX_PAGE_PROGRAM,
+        (uint8_t)curr_address >> 16,
+        (uint8_t)curr_address & 0xFF00 >> 8,
+        (uint8_t)curr_address & 0xFF,
+    };
+    cs_on(w25qxx);
+    if (w25qxx_transmit(w25qxx, tx, 4) == W25QXX_Ok) {
+      if (w25qxx_transmit(w25qxx, buf + buffer_offset, past_num) != W25QXX_Ok) {
+        cs_off(w25qxx);
+        return W25QXX_Err;
+      }
+    }
+    cs_off(w25qxx);
+
+    buffer_offset += past_num;
+    curr_address += past_num;
+    if (end_address - curr_address > w25qxx->page_size) {
+      past_num = w25qxx->page_size;
+    } else {
+      past_num = end_address - curr_address;
+    }
+  }
+  /*printf("write to flash Successful, curr:%08x end:%08x\n", curr_address,*/
+  /*end_address);*/
 
   W25_DBG("w25qxx_write - address 0x%08lx len 0x%04lx", address, len);
 
@@ -255,7 +294,7 @@ W25QXX_result_t w25qxx_write(W25QXX_HandleTypeDef *w25qxx, uint32_t address,
   W25_DBG("w25qxx_write %lu pages from %lu to %lu", 1 + last_page - first_page,
           first_page, last_page);
 
-  uint32_t buffer_offset = 0;
+  /*uint32_t buffer_offset = 0;*/
   uint32_t start_address = address;
 
   for (uint32_t page = first_page; page <= last_page; ++page) {
@@ -298,14 +337,13 @@ W25QXX_result_t w25qxx_write(W25QXX_HandleTypeDef *w25qxx, uint32_t address,
     buffer_offset += write_len;
     len -= write_len;
   }
-
   return W25QXX_Ok;
 }
 
 W25QXX_result_t w25qxx_erase(W25QXX_HandleTypeDef *w25qxx, uint32_t address,
                              uint32_t len) {
 
-  W25_DBG("w25qxx_erase, address = 0x%08lx len = 0x%04lx", address, len);
+  W25_DBG("w25qxx_erase, address=0x%08x len =0x%04x", address, len);
 
   W25QXX_result_t ret = W25QXX_Ok;
 
@@ -313,12 +351,12 @@ W25QXX_result_t w25qxx_erase(W25QXX_HandleTypeDef *w25qxx, uint32_t address,
   uint32_t first_sector = address / w25qxx->sector_size;
   uint32_t last_sector = (address + len - 1) / w25qxx->sector_size;
 
-  W25_DBG("w25qxx_erase: first sector: 0x%04lx", first_sector);
-  W25_DBG("w25qxx_erase: last sector : 0x%04lx", last_sector);
+  W25_DBG("w25qxx_erase: first sector: 0x%04x", first_sector);
+  W25_DBG("w25qxx_erase: last sector : 0x%04x", last_sector);
 
   for (uint32_t sector = first_sector; sector <= last_sector; ++sector) {
 
-    W25_DBG("Erasing sector %lu, starting at: 0x%08lx", sector,
+    W25_DBG("Erasing sector %u, starting at: 0x%08x", sector,
             sector * w25qxx->sector_size);
 
     // First we have to ensure the device is not busy
@@ -363,6 +401,35 @@ W25QXX_result_t w25qxx_chip_erase(W25QXX_HandleTypeDef *w25qxx) {
   return W25QXX_Ok;
 }
 
-/*
- * vim: ts=4 et nowrap
- */
+W25QXX_result_t w25qxx_read_char(W25QXX_HandleTypeDef *w25qxx, uint8_t *buffer,
+                                 uint32_t font_size, uint8_t len) {
+  W25QXX_result_t status = w25qxx_wait_for_ready(w25qxx, HAL_MAX_DELAY);
+  printf("the status:");
+  if (status != W25QXX_Ok) {
+    printf("%d\n", status);
+    return W25QXX_Err;
+  }
+  printf("%d\n", status);
+  // Transmit buffer holding command and address
+  uint32_t address = 0x00;
+  address += ('A' - 32) * 12;
+  uint8_t tx[4] = {
+      W25QXX_READ_DATA,
+      (uint8_t)(address >> 16),
+      (uint8_t)(address >> 8),
+      (uint8_t)(address),
+  };
+  cs_on(w25qxx);
+  if (w25qxx_transmit(w25qxx, tx, 4) ==
+      W25QXX_Ok) { // size will always be fixed
+    if (w25qxx_receive(w25qxx, buffer, 12) != W25QXX_Ok) {
+      cs_off(w25qxx);
+      return W25QXX_Err;
+    }
+  }
+  cs_off(w25qxx);
+
+  printf("the read is %s\n", buffer);
+
+  return W25QXX_Ok;
+}
