@@ -1,4 +1,4 @@
-#include "main.h"
+#include
 /*#include "lcd.h"*/
 /*#include "lcd_init.h"*/
 #include "lcdfont.h"
@@ -72,37 +72,37 @@ int main(void) {
 
   MX_GPIO_Init();
   MX_USART1_UART_Init();
-  MX_SPI2_Init();
+  // MX_SPI2_Init();
 
   /*lcd_init();*/
   printf("it's successful to init all peripherals.\n debug w25qxx...\n");
 
-  W25QXX_result_t res =
-      w25qxx_init(&w25qxx, &hspi2, SPI2_CS_GPIO_Port, SPI2_CS_Pin);
+  // W25QXX_result_t res =
+  //     w25qxx_init(&w25qxx, &hspi2, SPI2_CS_GPIO_Port, SPI2_CS_Pin);
 
-  if (res == W25QXX_Ok) {
-    DBG("W25QXX successfully initialized");
-    DBG("Manufacturer       = 0x%2x", w25qxx.manufacturer_id);
-    DBG("Device             = 0x%4x", w25qxx.device_id);
-    DBG("Block size         = 0x%04lx (%lu)", w25qxx.block_size,
-        w25qxx.block_size);
-    DBG("Block count        = 0x%04lx (%lu)", w25qxx.block_count,
-        w25qxx.block_count);
-    DBG("Sector size        = 0x%04lx (%lu)", w25qxx.sector_size,
-        w25qxx.sector_size);
-    DBG("Sectors per block  = 0x%04lx (%lu)", w25qxx.sectors_in_block,
-        w25qxx.sectors_in_block);
-    DBG("Page size          = 0x%04lx (%lu)", w25qxx.page_size,
-        w25qxx.page_size);
-    DBG("Pages per sector   = 0x%04lx (%lu)", w25qxx.pages_in_sector,
-        w25qxx.pages_in_sector);
-    DBG("Total size (in MB) = 0x%04lx (%lu)",
-        (w25qxx.block_count * w25qxx.block_size) / 1024 / 1024,
-        (w25qxx.block_count * w25qxx.block_size) / 1024 / 1024);
-  } else {
-    DBG("Unable to initialize w25qxx");
-    return 1;
-  }
+  // if (res == W25QXX_Ok) {
+  //   DBG("W25QXX successfully initialized");
+  //   DBG("Manufacturer       = 0x%2x", w25qxx.manufacturer_id);
+  //   DBG("Device             = 0x%4x", w25qxx.device_id);
+  //   DBG("Block size         = 0x%04lx (%lu)", w25qxx.block_size,
+  //       w25qxx.block_size);
+  //   DBG("Block count        = 0x%04lx (%lu)", w25qxx.block_count,
+  //       w25qxx.block_count);
+  //   DBG("Sector size        = 0x%04lx (%lu)", w25qxx.sector_size,
+  //       w25qxx.sector_size);
+  //   DBG("Sectors per block  = 0x%04lx (%lu)", w25qxx.sectors_in_block,
+  //       w25qxx.sectors_in_block);
+  //   DBG("Page size          = 0x%04lx (%lu)", w25qxx.page_size,
+  //       w25qxx.page_size);
+  //   DBG("Pages per sector   = 0x%04lx (%lu)", w25qxx.pages_in_sector,
+  //       w25qxx.pages_in_sector);
+  //   DBG("Total size (in MB) = 0x%04lx (%lu)",
+  //       (w25qxx.block_count * w25qxx.block_size) / 1024 / 1024,
+  //       (w25qxx.block_count * w25qxx.block_size) / 1024 / 1024);
+  // } else {
+  //   DBG("Unable to initialize w25qxx");
+  //   return 1;
+  // }
 
   HAL_Delay(10);
 
@@ -119,19 +119,19 @@ int main(void) {
 
   /*fill_buffer(buf, sizeof(buf));*/
 
-  for (uint16_t i = 0; i < 95; i++) {
-    for (uint16_t j = 0; j < 12; j++) {
-      buf[i * j + j] = ascii_1206[i][j];
-    }
-  }
-  res = w25qxx_write(&w25qxx, 0x00, (uint8_t *)&buf, PAGE_SIZE);
-  if (res != W25QXX_Ok) {
-    printf("write is failed!\n");
-    return 1;
-  }
-  if (w25qxx_read(&w25qxx, 0x00, (uint8_t *)&buf, PAGE_SIZE) == W25QXX_Ok) {
-    dump_hex("After write", 0, (uint8_t *)&buf, sizeof(buf));
-  }
+  // for (uint16_t i = 0; i < 95; i++) {
+  //   for (uint16_t j = 0; j < 12; j++) {
+  //     buf[i * j + j] = ascii_1206[i][j];
+  //   }
+  // }
+  // res = w25qxx_write(&w25qxx, 0x00, (uint8_t *)&buf, PAGE_SIZE);
+  // if (res != W25QXX_Ok) {
+  //   printf("write is failed!\n");
+  //   return 1;
+  // }
+  // if (w25qxx_read(&w25qxx, 0x00, (uint8_t *)&buf, PAGE_SIZE) == W25QXX_Ok) {
+  //   dump_hex("After write", 0, (uint8_t *)&buf, sizeof(buf));
+  // }
 }
 
 /**

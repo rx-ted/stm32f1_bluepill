@@ -44,6 +44,8 @@ include Core/subdir.mk
 include HW/subdir.mk
 include Drivers/subdir.mk
 include Startup/subdir.mk
+# if you need to expand other library, pls add the path here.
+
 
 INCLUDE = \
 		$(HW_INCS) \
@@ -52,6 +54,7 @@ INCLUDE = \
 		$(CMSIS_INCS) \
 		$(HAL_INCS) \
 
+# this's weird! why cann't list the static library? Not automatically!
 # arm-gcc static include
 INCLUDE += -I/usr/lib/gcc/arm-none-eabi/10.3.1/include 
 INCLUDE += -I/usr/lib/gcc/arm-none-eabi/10.3.1/include-fixed 
@@ -109,4 +112,17 @@ $(BUILD_DIR)/%.o: %.c Makefile | $(BUILD_DIR)
 $(BUILD_DIR)/%.o: %.s Makefile | $(BUILD_DIR)
 	@echo "[AS] $<" 
 	@$(CC) $(INCLUDE) $(SFLAGS)  "$<" -o "$@"
+
+# Usually use openocd in the stlink to write image.
+flash:
+	openocd  \
+		-f /usr/share/openocd/scripts/interface/stlink.cfg \
+		-f /usr/share/openocd/scripts/target/stm32f1x.cfg \
+		-c init -c halt \
+		-c "flash write_image erase $(TARGET).elf" \
+		-c reset -c shutdown
+
+# /dev/ttyXXXX, need to list /dev/tty* to get driver name.
+upload:
+	sudo stm32flash -w $(TARGET).bin -v -g 0x00 /dev/ttyCH3410
 
